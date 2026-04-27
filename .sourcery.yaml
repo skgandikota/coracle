@@ -1,0 +1,32 @@
+# https://docs.sourcery.ai/Configuration/Project-Settings/
+# Sourcery suggests Python refactorings on every PR. Comment-only - does
+# not gate merges.
+
+version: "1"
+
+rule_settings:
+  enable:
+    - default
+  disable:
+    - do-not-use-bare-except    # we already enforce via ruff E722
+  rule_types:
+    - refactoring
+    - suggestion
+    - comment
+
+python_version: "3.11"
+
+ignore:
+  - ".venv/**"
+  - "tests/**/conftest.py"
+  - "**/__snapshots__/**"
+  - "docs/**"
+
+github:
+  review: true
+  sourcery_branch: sourcery/{base_branch}
+  ignore_labels:
+    - sourcery-ignore
+
+metrics:
+  quality_threshold: 25.0

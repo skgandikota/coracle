@@ -1,0 +1,24 @@
+# https://developers.google.com/gemini-code-assist/docs/review-github-code
+# Gemini Code Assist for GitHub - free for public repos. Posts AI review
+# comments and a summary on every PR. Comment-only - does not gate merges.
+
+have_fun: false
+
+code_review:
+  disable: false
+  comment_severity_threshold: MEDIUM   # LOW | MEDIUM | HIGH | CRITICAL
+  max_review_comments: -1               # unlimited
+  pull_request_opened:
+    help: false
+    summary: true
+    code_review: true
+
+ignore_patterns:
+  - "**/*.lock"
+  - "**/*.snap"
+  - "**/__snapshots__/**"
+  - "**/.venv/**"
+  - "**/node_modules/**"
+  - "docs/**/*.md"
+  - ".tmp-issues/**"
+  - ".issue-bodies/**"

@@ -1,0 +1,53 @@
+# https://qodo-merge-docs.qodo.ai/usage-guide/configuration_options/
+# Qodo Merge (formerly Codium PR-Agent) provides /review /improve /describe
+# /ask slash commands and can auto-run on PR open. Comment-only - does not
+# gate merges.
+
+[config]
+model = "gpt-4o-mini"  # vendor default; Qodo cloud uses its own free model on OSS
+fallback_models = ["gpt-4o"]
+verbosity_level = 1
+
+[github_app]
+# Run /review automatically on every PR open + sync.
+pr_commands = [
+    "/describe --pr_description.final_update_message=false",
+    "/review --pr_reviewer.num_code_suggestions=0",
+    "/improve --pr_code_suggestions.commitable_code_suggestions=false",
+]
+handle_pr_actions = ["opened", "reopened", "ready_for_review"]
+
+[pr_reviewer]
+require_score_review = false
+require_tests_review = true
+require_security_review = true
+require_focused_review = true
+num_code_suggestions = 4
+inline_code_comments = true
+ask_and_reflect = false
+extra_instructions = """
+This is a memory-constrained Python orchestrator (16GB host).
+- Flag any unbounded buffers, missing model.unload(), sync calls in async code.
+- Sanitize all tool inputs (paths, URLs, shell args).
+- Tests must mock external calls; never live network or real browsers in CI.
+- Conventional Commits required in PR title.
+"""
+
+[pr_description]
+publish_labels = false
+add_original_user_description = true
+keep_original_user_title = true
+extra_instructions = "Be terse. Bullet points only. No marketing fluff."
+
+[pr_code_suggestions]
+num_code_suggestions = 4
+commitable_code_suggestions = false
+extra_instructions = "Suggestions must explain the WHY, cite line numbers, and prefer stdlib over new deps."
+
+[ignore]
+glob = [
+    "**/*.lock",
+    "**/__snapshots__/**",
+    "docs/**/*.md",
+    ".venv/**",
+]

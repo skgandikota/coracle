@@ -1,0 +1,36 @@
+# Bots whose review the strict reviewer (`code-reviewer-001`) waits for
+# before approving + merging. Until every bot in `required` has posted a
+# review or substantive top-level PR comment, the strict reviewer will
+# COMMENT only ("waiting for: ...") and not merge.
+#
+# Override: apply the `bot-review-bypass` label to a PR to skip the wait
+# (use only when a configured bot is unavailable / not installed).
+#
+# Each entry must match the bot's GitHub login *exactly* (case-insensitive
+# at runtime). Use `gh api /repos/OWNER/REPO/pulls/N/reviews` after a bot
+# posts to confirm its login.
+
+required:
+  - login: copilot-pull-request-reviewer
+    name: GitHub Copilot review
+    optional: true
+  - login: coderabbitai
+    name: CodeRabbit
+    optional: true   # mark optional until installed; flip to false after install
+  - login: qodo-merge-pro-for-open-source
+    name: Qodo Merge
+    optional: true
+  - login: gemini-code-assist
+    name: Gemini Code Assist
+    optional: true
+  - login: sourcery-ai
+    name: Sourcery
+    optional: true
+
+# Bots whose latest review state must NOT be REQUEST_CHANGES for us to merge.
+# (Same list as `required` minus optional ones, by default.)
+block_on_changes_requested: true
+
+# If a bot has not posted within this many minutes of PR open, treat as
+# "not installed" and skip waiting. 0 = wait forever (rely on bypass label).
+wait_minutes: 0
