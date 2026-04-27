@@ -72,6 +72,7 @@ This project is **agent-friendly**: every issue contains enough context, accepta
 3. Reference [`docs/PLAN.md`](docs/PLAN.md) for the bigger picture.
 4. Open a PR linking the issue (`Closes #N`).
 5. Follow [`CONTRIBUTING.md`](CONTRIBUTING.md).
+6. PRs are reviewed by a layered AI bot stack — see [`docs/REVIEW_BOTS.md`](docs/REVIEW_BOTS.md). Only our strict `code-reviewer-001` bot has merge authority; it waits for the AI bots to weigh in before approving.
 
 ## Tech stack
 

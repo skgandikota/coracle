@@ -20,9 +20,14 @@ from __future__ import annotations
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any
 
 import requests
+import yaml
+
+REVIEW_BOTS_CONFIG = Path(".github/review-bots.yml")
+BYPASS_LABEL = "bot-review-bypass"
 
 TOKEN = os.environ["GITHUB_TOKEN"]
 REPO = os.environ["REPO"]
@@ -68,6 +73,41 @@ def find_linked_issue(pr: dict[str, Any]) -> int | None:
     text = (pr.get("body") or "") + "\n" + (pr.get("title") or "")
     m = re.search(r"(?:close[sd]?|fixe[sd]?|resolve[sd]?)\s+#(\d+)", text, re.I)
     return int(m.group(1)) if m else None
+
+
+def load_required_bots() -> list[dict[str, Any]]:
+    if not REVIEW_BOTS_CONFIG.exists():
+        return []
+    try:
+        cfg = yaml.safe_load(REVIEW_BOTS_CONFIG.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError as e:
+        sys.stderr.write(f"Could not parse {REVIEW_BOTS_CONFIG}: {e}\n")
+        return []
+    return cfg.get("required", []) or []
+
+
+def collect_bot_activity(reviews: list[dict], comments: list[dict]) -> dict[str, dict]:
+    """Map login.lower() -> {state, has_comment} summarizing each bot's latest input."""
+    out: dict[str, dict] = {}
+    for r in reviews:
+        login = ((r.get("user") or {}).get("login") or "").lower()
+        if not login:
+            continue
+        prev = out.get(login, {})
+        out[login] = {
+            "state": r.get("state"),  # APPROVED | CHANGES_REQUESTED | COMMENTED | DISMISSED
+            "has_comment": True,
+            "submitted_at": r.get("submitted_at") or prev.get("submitted_at"),
+        }
+    for c in comments:
+        login = ((c.get("user") or {}).get("login") or "").lower()
+        if not login or login in out:
+            continue
+        body = (c.get("body") or "").strip()
+        if len(body) < 40:
+            continue
+        out[login] = {"state": "COMMENTED", "has_comment": True, "submitted_at": c.get("created_at")}
+    return out
 
 
 def looks_like_path_match(touched: str, allowed: str) -> bool:
@@ -200,6 +240,35 @@ def main() -> int:
             "(branch protection enforces linear history on merge)."
         )
 
+    pr_labels = {(lbl.get("name") or "").lower() for lbl in (pr.get("labels") or [])}
+    bypass = BYPASS_LABEL.lower() in pr_labels
+
+    bot_activity: dict[str, dict] = {}
+    missing_required: list[str] = []
+    bots_changes_requested: list[str] = []
+    bot_status_lines: list[str] = []
+
+    if not violations and not bypass:
+        reviews = gh("GET", f"/repos/{REPO}/pulls/{PR_NUM}/reviews?per_page=100")
+        issue_comments = gh("GET", f"/repos/{REPO}/issues/{PR_NUM}/comments?per_page=100")
+        bot_activity = collect_bot_activity(reviews, issue_comments)
+
+        for spec in load_required_bots():
+            login = (spec.get("login") or "").lower()
+            display = spec.get("name") or spec.get("login") or "unknown"
+            if not login:
+                continue
+            act = bot_activity.get(login)
+            if not act:
+                if not spec.get("optional", False):
+                    missing_required.append(f"`{display}` (`@{spec['login']}`)")
+                bot_status_lines.append(f"  - {display}: _no review yet_" + (" (optional)" if spec.get("optional") else ""))
+                continue
+            state = (act.get("state") or "COMMENTED").upper()
+            bot_status_lines.append(f"  - {display}: **{state}**")
+            if state == "CHANGES_REQUESTED":
+                bots_changes_requested.append(f"`{display}`")
+
     parts = ["## Strict PR reviewer"]
     if info:
         parts.append("\n".join(f"- {i}" for i in info))
@@ -207,8 +276,24 @@ def main() -> int:
         parts.append("### Blocking issues\n\n" + "\n\n".join(f"- {v}" for v in violations))
     if warnings:
         parts.append("### Warnings\n\n" + "\n\n".join(f"- {w}" for w in warnings))
-    if not violations and not warnings:
-        parts.append("All checks passed. Approving and merging.")
+    if bot_status_lines:
+        parts.append("### AI review bot status\n\n" + "\n".join(bot_status_lines))
+    if bots_changes_requested:
+        parts.append(
+            "### AI bots requested changes\n\nMerge blocked until resolved: "
+            + ", ".join(bots_changes_requested)
+        )
+    if missing_required:
+        parts.append(
+            "### Waiting for AI bot reviews\n\nMerge held until the following bots post a review "
+            "(or apply label `" + BYPASS_LABEL + "` to skip the wait):\n\n"
+            + "\n".join(f"- {m}" for m in missing_required)
+        )
+    if not violations and not warnings and not missing_required and not bots_changes_requested:
+        if bypass:
+            parts.append(f"All checks passed. Bypass label `{BYPASS_LABEL}` present. Approving and merging.")
+        else:
+            parts.append("All checks passed and AI review bots are satisfied. Approving and merging.")
     body = "\n\n".join(parts)
 
     if violations:
@@ -216,9 +301,14 @@ def main() -> int:
         print(f"Requested changes on PR #{PR_NUM}.")
         return 0
 
-    if warnings or pending:
+    if warnings or pending or missing_required or bots_changes_requested:
         gh("POST", f"/repos/{REPO}/pulls/{PR_NUM}/reviews", json={"body": body, "event": "COMMENT"})
-        print(f"Commented on PR #{PR_NUM} (warnings or pending CI).")
+        reasons = []
+        if warnings: reasons.append("warnings")
+        if pending: reasons.append("pending CI")
+        if missing_required: reasons.append(f"waiting on bots: {', '.join(missing_required)}")
+        if bots_changes_requested: reasons.append(f"AI bots requested changes: {', '.join(bots_changes_requested)}")
+        print(f"Commented on PR #{PR_NUM} ({'; '.join(reasons)}).")
         return 0
 
     gh("POST", f"/repos/{REPO}/pulls/{PR_NUM}/reviews", json={"body": body, "event": "APPROVE"})

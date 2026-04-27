@@ -1,0 +1,52 @@
+# https://docs.coderabbit.ai/guides/configure-coderabbit
+# CodeRabbit posts AI review comments on every PR. It does NOT gate merges -
+# only `code-reviewer-001` (our strict bot) has merge authority.
+
+language: en-US
+early_access: false
+tone_instructions: >
+  Be terse, technical, and direct. Skip praise and pleasantries. Focus on
+  correctness, security, RAM/perf footprint (this is a memory-constrained
+  orchestrator), and Python idioms. Cite line numbers. Do not repeat what
+  static analysis already catches.
+
+reviews:
+  profile: chill
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  collapse_walkthrough: true
+  auto_review:
+    enabled: true
+    drafts: false
+    base_branches: ["main"]
+  path_filters:
+    - "!**/*.lock"
+    - "!**/*.snap"
+    - "!**/__snapshots__/**"
+    - "!**/node_modules/**"
+    - "!**/.venv/**"
+    - "!docs/**/*.md"
+  path_instructions:
+    - path: "orchestrator/tools/**"
+      instructions: >
+        These are tool wrappers invoked by the coder model. Validate that all
+        external inputs (paths, URLs, shell args) are sanitized. Reject any
+        unbounded recursion, unscoped subprocess, or unbounded file reads.
+    - path: "orchestrator/models/**"
+      instructions: >
+        Check RAM budgeting carefully - the host has 16GB. Flag any unbounded
+        token buffers, missing model unload paths, or sync calls in async code.
+    - path: ".github/scripts/pr_reviewer.py"
+      instructions: >
+        This is the merge-gating bot. Be especially strict about auth handling,
+        secret leakage in logs, and merge race conditions.
+  tools:
+    ruff:
+      enabled: true
+    markdownlint:
+      enabled: true
+
+chat:
+  auto_reply: true
