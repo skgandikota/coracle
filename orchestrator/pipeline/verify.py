@@ -130,9 +130,7 @@ def _prompt_template() -> str:
 
 
 def _format_remaining(plan: Plan, current_step_id: str) -> str:
-    pending = [
-        s for s in plan.steps if s.status == "pending" and s.id != current_step_id
-    ]
+    pending = [s for s in plan.steps if s.status == "pending" and s.id != current_step_id]
     if not pending:
         return "(none)"
     return "\n".join(f"- {s.id}: {s.description}" for s in pending)
@@ -213,9 +211,7 @@ async def verify(
     decision: VerifyDecision | None = None
     for _attempt in range(_MAX_ATTEMPTS):
         try:
-            raw = await ollama.structured(
-                model=_MODEL, schema=VerifyDecision, prompt=prompt
-            )
+            raw = await ollama.structured(model=_MODEL, schema=VerifyDecision, prompt=prompt)
             decision = _coerce(raw)
             break
         except (json.JSONDecodeError, ValidationError, ValueError, TypeError):

@@ -92,9 +92,7 @@ class FakeRecorder:
     ],
 )
 @pytest.mark.asyncio
-async def test_verify_returns_each_action(
-    action: str, reason: str, hint: str | None
-) -> None:
+async def test_verify_returns_each_action(action: str, reason: str, hint: str | None) -> None:
     payload = {"action": action, "reason": reason, "next_step_hint": hint}
     ollama = FakeOllama([json.dumps(payload)])
     recorder = FakeRecorder()
@@ -120,9 +118,7 @@ async def test_verify_returns_each_action(
 @pytest.mark.asyncio
 async def test_schema_violation_retries_once_then_succeeds() -> None:
     bad = json.dumps({"action": "maybe", "reason": "bad enum"})  # invalid action
-    good = json.dumps(
-        {"action": "continue", "reason": "ok now", "next_step_hint": None}
-    )
+    good = json.dumps({"action": "continue", "reason": "ok now", "next_step_hint": None})
     ollama = FakeOllama([bad, good])
 
     decision = await verify(_step(), plan=_plan(), ollama=ollama)
@@ -134,9 +130,7 @@ async def test_schema_violation_retries_once_then_succeeds() -> None:
 
 @pytest.mark.asyncio
 async def test_json_decode_error_retries_once_then_succeeds() -> None:
-    good = json.dumps(
-        {"action": "done", "reason": "all green", "next_step_hint": None}
-    )
+    good = json.dumps({"action": "done", "reason": "all green", "next_step_hint": None})
     ollama = FakeOllama(["not json {", good])
 
     decision = await verify(_step(), plan=_plan(), ollama=ollama)
@@ -174,9 +168,7 @@ async def test_unexpected_payload_type_falls_through_to_fail_open() -> None:
 
 @pytest.mark.asyncio
 async def test_transport_error_is_treated_as_validation_failure() -> None:
-    good = json.dumps(
-        {"action": "continue", "reason": "fine", "next_step_hint": None}
-    )
+    good = json.dumps({"action": "continue", "reason": "fine", "next_step_hint": None})
     ollama = FakeOllama([TypeError("boom"), good])
 
     decision = await verify(_step(), plan=_plan(), ollama=ollama)

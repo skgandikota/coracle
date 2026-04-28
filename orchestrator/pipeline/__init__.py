@@ -1,5 +1,7 @@
 """Pipeline steps that transform user input into frontier-model calls."""
 
+from __future__ import annotations
+
 from .refine import (
     ConsolidatedBrief,
     ModelClient,
@@ -7,17 +9,6 @@ from .refine import (
     RefineError,
     refine,
 )
-
-__all__ = [
-    "ConsolidatedBrief",
-    "ModelClient",
-    "RefineError",
-    "RefinedPrompt",
-    "refine",
-"""Pipeline package: ordered AI-driven steps."""
-
-from __future__ import annotations
-
 from .verify import (
     ExecutableStep,
     OllamaClient,
@@ -29,11 +20,16 @@ from .verify import (
 )
 
 __all__ = [
+    "ConsolidatedBrief",
     "ExecutableStep",
+    "ModelClient",
     "OllamaClient",
     "Plan",
     "PlanStep",
+    "RefineError",
+    "RefinedPrompt",
     "StateRecorder",
     "VerifyDecision",
+    "refine",
     "verify",
 ]
