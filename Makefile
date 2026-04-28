@@ -1,4 +1,4 @@
-.PHONY: help install lint format test cov precommit clean serve
+.PHONY: help install lint format test cov precommit clean serve docker-build docker-run
 
 .DEFAULT_GOAL := help
 
@@ -33,3 +33,14 @@ clean: ## Remove caches and build artifacts
 
 serve: ## Run the orchestrator CLI (placeholder)
 	python -m orchestrator
+
+IMAGE ?= orchestrator:slim
+
+docker-build: ## Build the slim production image (orchestrator:slim)
+	DOCKER_BUILDKIT=1 docker build -t $(IMAGE) --target runtime .
+
+docker-run: ## Run the slim image with sensible local defaults
+	docker run --rm -p 8000:8000 \
+		-v $(PWD)/config:/etc/orchestrator:ro \
+		-v orchestrator-data:/var/lib/orchestrator \
+		$(IMAGE)
