@@ -1,0 +1,79 @@
+# syntax=docker/dockerfile:1.7
+# Browser-fallback variant of the orchestrator image.
+#
+# This image bakes Playwright + Chromium so the optional browser-fallback
+# search path (issue #9) works out of the box, with no host-side Playwright
+# cache to mount. It is roughly ~600 MB compared to the ~250 MB slim image
+# and should only be used when the browser feature is required.
+#
+# Build: docker build -t orchestrator:browser -f Dockerfile.browser .
+# Prefer the slim image (`Dockerfile`) for production deployments and let
+# users opt in to this variant explicitly.
+
+ARG PYTHON_VERSION=3.11
+
+# ---------- Stage 1: builder ----------------------------------------------
+FROM python:${PYTHON_VERSION}-slim AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential git \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /src
+
+COPY pyproject.toml README.md ./
+COPY orchestrator ./orchestrator
+
+# Install with the [browser] extra so Playwright's Python package is present.
+RUN pip install --user --no-cache-dir ".[browser]"
+
+# ---------- Stage 2: runtime ----------------------------------------------
+FROM python:${PYTHON_VERSION}-slim AS runtime
+
+LABEL org.opencontainers.image.source="https://github.com/skgandikota/orchestrator" \
+      org.opencontainers.image.title="orchestrator-browser" \
+      org.opencontainers.image.description="Orchestrator runtime image with Playwright + Chromium baked in (browser-fallback variant)." \
+      org.opencontainers.image.licenses="CC-BY-NC-SA-4.0" \
+      org.opencontainers.image.url="https://github.com/skgandikota/orchestrator" \
+      org.opencontainers.image.documentation="https://github.com/skgandikota/orchestrator/blob/main/docs/DEPLOY.md"
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/home/orchestrator/.local/bin:${PATH}" \
+    ORCHESTRATOR_CONFIG=/etc/orchestrator/config.yaml \
+    ORCHESTRATOR_DATA_DIR=/var/lib/orchestrator \
+    PLAYWRIGHT_BROWSERS_PATH=/opt/playwright
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl tini \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* \
+    && groupadd --system --gid 1000 orchestrator \
+    && useradd  --system --uid 1000 --gid 1000 --create-home --shell /usr/sbin/nologin orchestrator \
+    && mkdir -p /etc/orchestrator /var/lib/orchestrator /app /opt/playwright \
+    && chown -R orchestrator:orchestrator /etc/orchestrator /var/lib/orchestrator /app /opt/playwright
+
+COPY --from=builder --chown=orchestrator:orchestrator /root/.local /home/orchestrator/.local
+
+# Install Chromium + its OS-level deps. Chromium only — Firefox / WebKit
+# would roughly double the image size.
+RUN /home/orchestrator/.local/bin/playwright install --with-deps chromium \
+    && chown -R orchestrator:orchestrator /opt/playwright
+
+WORKDIR /app
+
+USER orchestrator
+
+VOLUME ["/etc/orchestrator", "/var/lib/orchestrator"]
+
+EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl --fail --silent http://localhost:8000/v1/models || exit 1
+
+ENTRYPOINT ["tini", "--", "python", "-m", "orchestrator"]
+CMD ["serve"]

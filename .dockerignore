@@ -1,0 +1,67 @@
+# Keep the build context small and free of secrets / dev clutter.
+
+# VCS
+.git
+.gitignore
+.gitattributes
+.github
+
+# Tests / docs / dev tooling (not needed at build time)
+tests
+docs
+scripts
+.gemini
+.pre-commit-config.yaml
+.coderabbit.yaml
+.gitleaks.toml
+.pr_agent.toml
+.semgrep.yml
+.sourcery.yaml
+.editorconfig
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md
+
+# Python build / cache artefacts
+.venv
+venv
+env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+build
+dist
+.eggs
+
+# Test / lint caches
+.pytest_cache
+.ruff_cache
+.mypy_cache
+.coverage
+.coverage.*
+htmlcov
+coverage.xml
+
+# Editor / OS noise
+.idea
+.vscode
+.DS_Store
+Thumbs.db
+
+# Local data the orchestrator may write (model files, logs, SQLite, scratch)
+.tmp-issues
+*.sqlite
+*.sqlite-journal
+*.log
+models
+*.gguf
+*.bin
+*.safetensors
+
+# Local config that must never leak into the image
+config/local.*
+config/*.local.*
+.env
+.env.*
