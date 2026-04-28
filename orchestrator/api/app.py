@@ -1,10 +1,9 @@
-"""FastAPI application factory for the orchestrator HTTP surface."""
-"""FastAPI app composition for orchestrator HTTP interfaces.
+"""FastAPI application factory for the orchestrator HTTP surface.
 
 This module is intentionally small. Other interface routers (e.g. the
-OpenAI-compatible router from #11) mount themselves here too; keep
-edits idempotent and additive so the routers can be merged without
-conflict.
+OpenAI-compatible router from #11, native task API from #15) mount
+themselves here too; keep edits idempotent and additive so the routers
+can be merged without conflict.
 """
 
 from __future__ import annotations
@@ -12,8 +11,9 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from orchestrator.api.openai_compat import build_router
+from orchestrator.api.tasks import router as tasks_router
 
-__all__ = ["create_app"]
+__all__ = ["app", "create_app"]
 
 
 def create_app() -> FastAPI:
@@ -24,8 +24,8 @@ def create_app() -> FastAPI:
         description="Local-first agent orchestrator (OpenAI-compatible API).",
     )
     app.include_router(build_router())
+    app.include_router(tasks_router)
     return app
-from orchestrator.api.tasks import router as tasks_router
 
-app = FastAPI(title="orchestrator")
-app.include_router(tasks_router)
+
+app = create_app()

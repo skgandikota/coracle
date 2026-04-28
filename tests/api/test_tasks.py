@@ -41,8 +41,13 @@ def client() -> TestClient:
 
 def test_app_mounts_native_router() -> None:
     paths = {route.path for route in app_module.app.router.routes}
-    assert {"/jobs", "/jobs/{job_id}", "/jobs/{job_id}/stream",
-            "/jobs/{job_id}/status", "/jobs/{job_id}/cancel"} <= paths
+    assert {
+        "/jobs",
+        "/jobs/{job_id}",
+        "/jobs/{job_id}/stream",
+        "/jobs/{job_id}/status",
+        "/jobs/{job_id}/cancel",
+    } <= paths
 
 
 # ---------------------------------------------------------------------------
