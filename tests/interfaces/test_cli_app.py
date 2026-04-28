@@ -18,7 +18,7 @@ from orchestrator.interfaces.cli import (
     app,
 )
 
-runner = CliRunner(mix_stderr=False)
+runner = CliRunner()
 
 
 # --------------------------------------------------------------------------- #
